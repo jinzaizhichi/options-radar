@@ -1,0 +1,15 @@
+[Unit]
+Description=Options Radar API
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=deploy
+WorkingDirectory=/opt/options-radar
+ExecStart=/opt/options-radar/venv/bin/uvicorn api.main:app --host 127.0.0.1 --port 8001
+Restart=always
+RestartSec=5
+EnvironmentFile=/opt/options-radar/.env
+
+[Install]
+WantedBy=multi-user.target
