@@ -1,14 +1,36 @@
+import os
+import secrets
 from datetime import date
-from fastapi import FastAPI, HTTPException
-from fastapi.templating import Jinja2Templates
+
+from dotenv import load_dotenv
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.requests import Request
 from fastapi.responses import HTMLResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi.templating import Jinja2Templates
 
 from api.models import RankingsResponse, RankingRow
 from scanner.db import get_rankings_by_date, get_latest_ranking_date
 
+load_dotenv()
+
 app = FastAPI(title="options-radar", version="1.0.0")
 templates = Jinja2Templates(directory="web/templates")
+security = HTTPBasic()
+
+
+def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)) -> None:
+    """验证 HTTP Basic Auth，使用常量时间比较防止时序攻击。"""
+    expected_user = os.environ.get("RADAR_USER", "")
+    expected_pass = os.environ.get("RADAR_PASSWORD", "")
+    user_ok = secrets.compare_digest(credentials.username.encode(), expected_user.encode())
+    pass_ok = secrets.compare_digest(credentials.password.encode(), expected_pass.encode())
+    if not (user_ok and pass_ok):
+        raise HTTPException(
+            status_code=401,
+            detail="认证失败",
+            headers={"WWW-Authenticate": "Basic"},
+        )
 
 
 @app.get("/health")
@@ -34,7 +56,11 @@ def rankings_by_date(target_date: date):
 
 
 @app.get("/", response_class=HTMLResponse)
-def web_index(request: Request, date: str | None = None):
+def web_index(
+    request: Request,
+    date: str | None = None,
+    _: None = Depends(verify_credentials),
+):
     if date:
         rows = get_rankings_by_date(date)
         display_date = date

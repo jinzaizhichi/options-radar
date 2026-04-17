@@ -1,8 +1,16 @@
+import os
 from unittest.mock import patch
+
+import pytest
 from fastapi.testclient import TestClient
-from api.main import app
+
+os.environ.setdefault("RADAR_USER", "testuser")
+os.environ.setdefault("RADAR_PASSWORD", "testpass")
+
+from api.main import app  # noqa: E402
 
 client = TestClient(app)
+AUTH = ("testuser", "testpass")
 
 MOCK_DATE = "2026-04-16"
 MOCK_ROW = {
@@ -50,3 +58,24 @@ def test_rankings_by_date_not_found():
     with patch("api.main.get_rankings_by_date", return_value=[]):
         resp = client.get("/rankings/2000-01-01")
     assert resp.status_code == 404
+
+
+# --- 以下测试 web 页面的 Basic Auth ---
+
+def test_web_no_auth_returns_401():
+    resp = client.get("/", auth=None)
+    assert resp.status_code == 401
+
+
+def test_web_wrong_password_returns_401():
+    resp = client.get("/", auth=("testuser", "wrongpass"))
+    assert resp.status_code == 401
+
+
+def test_web_correct_auth_returns_200():
+    from fastapi.responses import HTMLResponse
+    with patch("api.main.get_latest_ranking_date", return_value=None), \
+         patch("api.main.templates") as mock_tmpl:
+        mock_tmpl.TemplateResponse.return_value = HTMLResponse("<html/>")
+        resp = client.get("/", auth=AUTH)
+    assert resp.status_code == 200
