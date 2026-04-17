@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Options Radar — 期权成交量排行</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Courier New', monospace; background: #0d1117; color: #c9d1d9; padding: 20px; }
+    h1 { color: #58a6ff; margin-bottom: 4px; font-size: 1.4rem; }
+    .meta { color: #8b949e; font-size: 0.85rem; margin-bottom: 16px; }
+    .date-nav { margin-bottom: 16px; }
+    .date-nav input { background: #161b22; border: 1px solid #30363d; color: #c9d1d9; padding: 4px 8px; border-radius: 4px; }
+    .date-nav button { background: #238636; border: none; color: white; padding: 4px 12px; border-radius: 4px; cursor: pointer; margin-left: 6px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    th { background: #161b22; color: #8b949e; padding: 8px 6px; text-align: right; border-bottom: 1px solid #30363d; white-space: nowrap; }
+    th:first-child, th:nth-child(2) { text-align: left; }
+    td { padding: 6px 6px; border-bottom: 1px solid #21262d; text-align: right; }
+    td:first-child, td:nth-child(2) { text-align: left; }
+    tr:hover { background: #161b22; }
+    .ticker { color: #58a6ff; font-weight: bold; }
+    .pos { color: #3fb950; }
+    .neg { color: #f85149; }
+    .earnings-soon { color: #f0883e; }
+    .na { color: #484f58; }
+  </style>
+</head>
+<body>
+  <h1>Options Radar</h1>
+  <div class="meta">美股期权成交量前 20 名 | 数据日期：{{ date or '暂无数据' }}</div>
+
+  <div class="date-nav">
+    <form method="get">
+      <input type="date" name="date" value="{{ date }}">
+      <button type="submit">查询</button>
+    </form>
+  </div>
+
+  {% if rankings %}
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Ticker</th>
+        <th>市值</th>
+        <th>Opt Vol</th>
+        <th>Call</th>
+        <th>Put</th>
+        <th>OI</th>
+        <th>IV</th>
+        <th>IV Chg</th>
+        <th>HV</th>
+        <th>IV/HV</th>
+        <th>52IV%</th>
+        <th>Price</th>
+        <th>Chg%</th>
+        <th>Vol</th>
+        <th>YTD%</th>
+        <th>Next Earnings</th>
+        <th>Days</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rankings %}
+      <tr>
+        <td>{{ r.rank }}</td>
+        <td class="ticker">{{ r.ticker }}</td>
+        <td>{{ (r.market_cap / 1e9) | round(1) }}B</td>
+        <td>{{ '{:,.0f}'.format(r.total_vol or 0) }}</td>
+        <td>{{ '{:,.0f}'.format(r.call_vol or 0) }}</td>
+        <td>{{ '{:,.0f}'.format(r.put_vol or 0) }}</td>
+        <td>{{ '{:,.0f}'.format(r.opt_oi or 0) }}</td>
+        <td>{{ (r.iv * 100) | round(1) if r.iv else '-' }}%</td>
+        <td class="{{ 'pos' if r.iv_change and r.iv_change > 0 else 'neg' if r.iv_change and r.iv_change < 0 else '' }}">
+          {{ ('+' if r.iv_change and r.iv_change > 0 else '') + ((r.iv_change * 100) | round(2) | string) + '%' if r.iv_change else '-' }}
+        </td>
+        <td>{{ (r.hv * 100) | round(1) if r.hv else '-' }}%</td>
+        <td>{{ r.iv_hv_ratio | round(2) if r.iv_hv_ratio else '-' }}</td>
+        <td>{{ r.iv_pct_52w | round(1) if r.iv_pct_52w else '-' }}%</td>
+        <td>${{ r.close_price }}</td>
+        <td class="{{ 'pos' if r.price_change and r.price_change > 0 else 'neg' }}">
+          {{ ('+' if r.price_change and r.price_change > 0 else '') + (r.price_change | round(2) | string) + '%' if r.price_change else '-' }}
+        </td>
+        <td>{{ '{:,.0f}'.format(r.volume or 0) }}</td>
+        <td class="{{ 'pos' if r.ytd_change and r.ytd_change > 0 else 'neg' }}">
+          {{ ('+' if r.ytd_change and r.ytd_change > 0 else '') + (r.ytd_change | round(2) | string) + '%' if r.ytd_change else '-' }}
+        </td>
+        <td class="{{ 'earnings-soon' if r.days_to_earnings and r.days_to_earnings <= 14 else '' }}">
+          {{ r.next_earnings or '-' }}
+        </td>
+        <td>{{ r.days_to_earnings or '-' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p style="color:#8b949e; margin-top:40px;">暂无数据</p>
+  {% endif %}
+</body>
+</html>
