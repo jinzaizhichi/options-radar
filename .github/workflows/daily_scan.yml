@@ -1,0 +1,57 @@
+name: Daily Options Scan
+
+on:
+  schedule:
+    - cron: '30 22 * * 1-5'   # 美东时间收盘后，周一到周五
+  workflow_dispatch:
+    inputs:
+      backfill:
+        description: '首次运行回填52周IV历史'
+        type: boolean
+        default: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Open SSH tunnel to PostgreSQL
+        run: |
+          # 后台建立 SSH 隧道：本地 15432 -> VPS 5432
+          ssh -f -N -L 15432:localhost:5432 \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+            -o StrictHostKeyChecking=no
+          sleep 3
+
+      - name: Run scan
+        env:
+          DB_HOST: localhost
+          DB_PORT: 15432
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          if [ "${{ inputs.backfill }}" = "true" ]; then
+            python -m scanner.main --backfill
+          else
+            python -m scanner.main
+          fi
