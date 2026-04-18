@@ -39,7 +39,7 @@ def health():
 
 
 @app.get("/rankings/latest", response_model=RankingsResponse)
-def latest_rankings():
+def latest_rankings(_: None = Depends(verify_credentials)):
     latest = get_latest_ranking_date()
     if not latest:
         raise HTTPException(status_code=404, detail="暂无数据")
@@ -48,7 +48,7 @@ def latest_rankings():
 
 
 @app.get("/rankings/{target_date}", response_model=RankingsResponse)
-def rankings_by_date(target_date: date):
+def rankings_by_date(target_date: date, _: None = Depends(verify_credentials)):
     rows = get_rankings_by_date(str(target_date))
     if not rows:
         raise HTTPException(status_code=404, detail=f"{target_date} 无数据")
