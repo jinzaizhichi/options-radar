@@ -15,9 +15,16 @@ EXTRA_ETFS = ["SPY", "QQQ", "IWM", "GLD", "TLT", "XLF", "XLE", "XLK", "ARKK"]
 
 def get_sp500_tickers() -> list[str]:
     """从 Wikipedia 拉取 S&P 500 成分股列表。"""
-    table = pd.read_html(
-        "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-    )[0]
+    import urllib.request
+    # GitHub Actions IP 被 Wikipedia 默认 UA 拦截，需要模拟浏览器请求
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; options-radar/1.0)"}
+    req = urllib.request.Request(
+        "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies",
+        headers=headers,
+    )
+    with urllib.request.urlopen(req) as resp:
+        html = resp.read()
+    table = pd.read_html(html)[0]
     tickers = table["Symbol"].str.replace(".", "-", regex=False).tolist()
     return sorted(set(tickers + EXTRA_ETFS))
 
