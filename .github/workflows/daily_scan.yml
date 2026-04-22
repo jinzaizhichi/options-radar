@@ -36,4 +36,6 @@ jobs:
           fi
           ssh -p 2222 ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
             -o StrictHostKeyChecking=no \
+            -o ServerAliveInterval=60 \
+            -o ServerAliveCountMax=60 \
             "cd /opt/options-radar && source venv/bin/activate && python -m scanner.main $BACKFILL_FLAG"
