@@ -21,15 +21,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
@@ -37,25 +28,12 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p 2222 -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Open SSH tunnel to PostgreSQL
+      - name: Run scan on VPS
         run: |
-          # 后台建立 SSH 隧道：本地 15432 -> VPS 5432
-          ssh -f -N -L 15432:localhost:5432 \
-            -p 2222 \
-            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
-            -o StrictHostKeyChecking=no
-          sleep 3
-
-      - name: Run scan
-        env:
-          DB_HOST: localhost
-          DB_PORT: 15432
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-        run: |
+          BACKFILL_FLAG=""
           if [ "${{ inputs.backfill }}" = "true" ]; then
-            python -m scanner.main --backfill
-          else
-            python -m scanner.main
+            BACKFILL_FLAG="--backfill"
           fi
+          ssh -p 2222 ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+            -o StrictHostKeyChecking=no \
+            "cd /opt/options-radar && source venv/bin/activate && python -m scanner.main $BACKFILL_FLAG"
